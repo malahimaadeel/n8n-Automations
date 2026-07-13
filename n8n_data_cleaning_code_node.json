@@ -1,0 +1,123 @@
+{
+  "name": "Code node",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "value": "REDACTED-SHEET-ID",
+          "mode": "list",
+          "cachedResultName": "Code Node",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/REDACTED-SHEET-ID/edit"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/REDACTED-SHEET-ID/edit#gid=0"
+        },
+        "event": "rowAdded",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "0d0a8e04-7cec-4fbe-b23b-72c817d9dc7e",
+      "name": "Google Sheets Trigger",
+      "credentials": {
+        "googleSheetsTriggerOAuth2Api": {
+          "id": "REDACTED-CRED-ID",
+          "name": "Google Sheets Trigger account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const data = $json;\n\n// Added fallbacks (|| \"\") to prevent crashes if a field is empty/missing\nconst cleanFull = (data[\"full name\"] || \"\").trim().replace(/\\s+/g, ' ');\nconst parts = cleanFull.split(\" \");\nconst first = parts[0] || \"\";\nconst last = parts[1] || \"\";\n\nlet email = (data.email || \"\").trim().toLowerCase();\n\nconst rawAmount = data.amount;\nconst amountStr = String(rawAmount || \"\").trim().replace(/[^0-9.]/g, \"\");\nconst amount = parseFloat(amountStr) || 0;\n\nlet rawDate = data.date;\nlet msg = (data.message || \"\").trim().replace(/\\s+/g, ' ');\n\n// Transformation\nfunction cap(s){\n  if (!s) return \"\"; // Added safety check in case string is empty\n  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();\n}\n\nconst firstName = cap(first);\nconst lastName = cap(last);\n\nconst d = new Date(rawDate);\nconst niceDate = d.toDateString();\n\n// Fixed typo: \"Qoute\" -> \"Quote\"\nconst subject = `Experience review from ${firstName}`;\n\n// Re-used your cap() function to clean the message safely\nconst cleanMsg = cap(msg); \n\n// FIXED: Added the closing bracket below!\nreturn {\n  firstName,\n  lastName,\n  email,\n  amount,\n  niceDate,\n  subject,\n  cleanMsg\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "a97536ef-0037-4d5f-8b65-cb439c7caa93",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "=Hello  {{ $json.firstName }} {{ $json.lastName }}\nAmount used:{{ $json.amount }}\nDate: {{ $json.niceDate }}\nMessage: {{ $json.cleanMsg }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "7b93862c-0077-4f4f-89ef-f1317de7ddb9",
+      "name": "Send a message",
+      "webhookId": "REDACTED-WEBHOOK-ID",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REDACTED-CRED-ID",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Sheets Trigger": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "3170fe61-c39e-4f98-97cf-c164f22d1d0f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "REDACTED-INSTANCE-ID"
+  },
+  "nodeGroups": [],
+  "id": "REDACTED-WORKFLOW-ID",
+  "tags": []
+}
