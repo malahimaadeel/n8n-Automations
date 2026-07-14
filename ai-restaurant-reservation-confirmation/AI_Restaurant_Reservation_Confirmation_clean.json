@@ -1,0 +1,155 @@
+{
+  "name": "AI Restaurant Reservation Confirmation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "YOUR_WEBHOOK_PATH",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "4c01c31b-9989-4f5c-98ff-bec5609ae7bd",
+      "name": "Webhook",
+      "webhookId": "YOUR_WEBHOOK_ID"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-flash-lite-latest",
+          "mode": "list",
+          "cachedResultName": "models/gemini-flash-lite-latest"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Write a warm, professional restaurant reservation confirmation email for the guest named {{ $json.body.clientName }}. Reservation details: {{ $json.body.service }}. MY INFORMATION: My restaurant name is Your Restaurant Name, located in Your City. STRICT RULES: You must start the response directly with 'Subject:'. Do not use any brackets like [Restaurant Name], [Address], or [Phone]. Replace all such placeholders with the information I provided. If some information is missing, simply omit that part instead of using a bracket. Do not include any introductory phrases like 'Sure' or 'Here is your draft'. Only provide the final email content in English.\n"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "1ff7931a-5b47-4d0b-8d3c-e6e97ccd6018",
+      "name": "Message a model",
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputData = $input.first().json;\nlet rawText = \"\";\n\ntry {\n  rawText = inputData.content.parts[0].text;\n} catch (e) {\n  rawText = \"No text found\";\n}\n\nconst parts = rawText.split('\\n\\n');\nconst subject = parts[0].replace('Subject: ', '').trim();\nconst body = parts.slice(1).join('\\n\\n').trim();\n\nreturn {\n  subject: subject,\n  body: body\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        512,
+        0
+      ],
+      "id": "00391a2a-f21d-436f-90f6-a9f1bab1e17b",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Webhook').item.json.body.clientEmail }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.body }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        720,
+        0
+      ],
+      "id": "4b2f45c3-e3df-405d-9c3d-d5b68f679ede",
+      "name": "Send a message",
+      "webhookId": "YOUR_WEBHOOK_ID",
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "Email Sent Successfully!",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        896,
+        0
+      ],
+      "id": "a13d4acf-80a8-481b-9383-7cdd415bf02c",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "nodeGroups": [],
+  "id": "REPLACE_WITH_YOUR_OWN_ID",
+  "tags": []
+}
