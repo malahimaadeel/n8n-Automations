@@ -1,0 +1,21 @@
+Subject: New Feedback - {{$json["urgency"]}} urgency ({{$json["sentiment"]}})
+
+Message:
+
+New feedback just came in.
+
+👤 Name: {{$json["name"]}}
+📧 Email: {{$json["email"]}}
+🕒 Received: {{$json["timestamp"]}}
+
+📝 Feedback:
+"{{$json["message"]}}"
+
+🧠 AI Analysis:
+   Sentiment: {{$json["sentiment"]}}
+   Urgency: {{$json["urgency"]}}
+
+⚡ Next Step: If urgency is high, respond to this person within 24 hours.
+
+—
+Automated by the Feedback Sentiment Analyzer workflow.

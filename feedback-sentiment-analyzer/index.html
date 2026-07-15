@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Feedback Sentiment Analyzer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%); }
+    .input-ring:focus {
+      outline: none;
+      border-color: #4f46e5;
+      box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
+    }
+    .field-error {
+      border-color: #ef4444 !important;
+    }
+  </style>
+</head>
+
+<body class="flex items-center justify-center min-h-screen px-4">
+
+  <div class="w-full max-w-lg bg-white border border-slate-200 rounded-2xl shadow-md p-10">
+
+    <header class="mb-8 flex items-start gap-3">
+      <div class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-semibold flex-shrink-0">
+        F
+      </div>
+      <div>
+        <h1 class="text-2xl font-semibold text-slate-900 tracking-tight">Share your feedback</h1>
+        <p class="text-slate-500 mt-1 text-sm">Tell us what you think. Our team reads every response.</p>
+      </div>
+    </header>
+
+    <div class="space-y-6">
+      <div class="grid grid-cols-1 gap-6">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-2">Full Name</label>
+          <input 
+            id="reviewerName"
+            type="text"
+            placeholder="John Doe"
+            class="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 input-ring transition-all"
+          />
+          <p id="reviewerNameError" class="hidden text-xs text-red-600 mt-1">Please enter your name.</p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-2">Email Address</label>
+          <input 
+            id="reviewerEmail"
+            type="email"
+            placeholder="name@company.com"
+            class="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 input-ring transition-all"
+          />
+          <p id="reviewerEmailError" class="hidden text-xs text-red-600 mt-1">Please enter a valid email.</p>
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <label class="block text-sm font-medium text-slate-700">Your Feedback</label>
+            <span id="charCount" class="text-xs text-slate-400">0 / 500</span>
+          </div>
+          <textarea 
+            id="feedbackText"
+            placeholder="What worked well, what didn't, and why..."
+            maxlength="500"
+            class="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 input-ring transition-all resize-none"
+            rows="5"
+          ></textarea>
+          <p id="feedbackTextError" class="hidden text-xs text-red-600 mt-1">Please share your feedback.</p>
+        </div>
+      </div>
+
+      <button 
+        onclick="submitForm(this)"
+        class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3.5 rounded-lg transition-colors duration-200 flex items-center justify-center"
+      >
+        <span id="btnText">Submit Feedback</span>
+      </button>
+
+      <div id="statusBox" class="hidden py-3 px-4 rounded-lg text-sm font-medium text-center"></div>
+    </div>
+
+    <footer class="mt-8 text-center text-xs text-slate-400">
+      Feedback is scored by AI and routed to the right team.
+    </footer>
+  </div>
+
+<script>
+  const WEBHOOK_URL = "https://maleeha1adeel.app.n8n.cloud/webhook-test/sentiment-analyzer";
+  const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  const reviewerNameField = document.getElementById("reviewerName");
+  const reviewerEmailField = document.getElementById("reviewerEmail");
+  const feedbackTextField = document.getElementById("feedbackText");
+  const charCount = document.getElementById("charCount");
+
+  feedbackTextField.addEventListener("input", () => {
+    charCount.innerText = `${feedbackTextField.value.length} / 500`;
+  });
+
+  function clearErrors() {
+    ["reviewerName", "reviewerEmail", "feedbackText"].forEach((id) => {
+      document.getElementById(id).classList.remove("field-error");
+      document.getElementById(`${id}Error`).classList.add("hidden");
+    });
+  }
+
+  function showFieldError(id) {
+    document.getElementById(id).classList.add("field-error");
+    document.getElementById(`${id}Error`).classList.remove("hidden");
+  }
+
+  function validate(payload) {
+    let valid = true;
+    if (!payload.name) { showFieldError("reviewerName"); valid = false; }
+    if (!payload.email || !EMAIL_PATTERN.test(payload.email)) { showFieldError("reviewerEmail"); valid = false; }
+    if (!payload.message) { showFieldError("feedbackText"); valid = false; }
+    return valid;
+  }
+
+  async function submitForm(button) {
+    const statusBox = document.getElementById("statusBox");
+    const btnText = document.getElementById("btnText");
+
+    clearErrors();
+    statusBox.classList.add("hidden");
+
+    const payload = {
+      name: reviewerNameField.value.trim(),
+      email: reviewerEmailField.value.trim(),
+      message: feedbackTextField.value.trim()
+    };
+
+    if (!validate(payload)) {
+      updateStatus("Please fix the highlighted fields.", "bg-red-50 text-red-700 border border-red-100");
+      return;
+    }
+
+    button.disabled = true;
+    btnText.innerText = "Submitting...";
+
+    try {
+      const response = await fetch(WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        updateStatus("Thank you. Your feedback has been received.", "bg-emerald-50 text-emerald-700 border border-emerald-100");
+        reviewerNameField.value = "";
+        reviewerEmailField.value = "";
+        feedbackTextField.value = "";
+        charCount.innerText = "0 / 500";
+      } else {
+        throw new Error();
+      }
+    } catch (error) {
+      updateStatus("Something went wrong. Please try again in a moment.", "bg-red-50 text-red-700 border border-red-100");
+    } finally {
+      button.disabled = false;
+      btnText.innerText = "Submit Feedback";
+    }
+  }
+
+  function updateStatus(text, classes) {
+    const statusBox = document.getElementById("statusBox");
+    statusBox.innerText = text;
+    statusBox.className = `block py-3 px-4 rounded-lg text-sm font-medium text-center ${classes}`;
+  }
+</script>
+
+</body>
+</html>
