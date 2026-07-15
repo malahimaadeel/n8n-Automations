@@ -5,10 +5,15 @@ A JavaScript snippet used inside n8n's Code node to clean and normalize incoming
 ## What it does
 
 Splits and cleans full name into first and last name
+
 Trims and lowercases email
+
 Strips non numeric characters from amount, converts to float
+
 Formats raw date into a readable format
+
 Capitalizes names and messages safely, handles empty fields
+
 Outputs clean, structured data ready for the next node
 
 ## Why it matters
