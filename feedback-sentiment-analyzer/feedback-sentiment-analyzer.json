@@ -1,0 +1,242 @@
+{
+  "name": "Feedback Sentiment Analyzer",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sentiment-analyzer",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        64,
+        0
+      ],
+      "id": "25cb7809-ff36-442b-aed2-6e5cd05c8c0c",
+      "name": "Webhook",
+      "webhookId": "YOUR_WEBHOOK_ID"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "models/gemini-3-flash-preview"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are a feedback triage assistant for a product team.\n\nRead the feedback message and extract two fields:\n\n1. sentiment — exactly one word: positive, negative, neutral, spam\n2. urgency — exactly one word: high, medium, low\n\nRules:\n- Praise with no issue raised → positive, low\n- Complaint, frustration, bug report, or refund/cancellation request → negative, high\n- Neutral suggestion, question, or mixed feedback → neutral, medium\n- Irrelevant, promotional, or unrelated to the product → spam, low\n\nOutput rules:\n- Return ONLY valid JSON. No markdown, no code fences, no explanation.\n- Use exactly the two keys \"sentiment\" and \"urgency\". Never add extra keys.\n- If a negative message mentions a safety issue, data loss, or payment problem, always mark urgency as high.\n\nExample:\nMessage: \"The app crashed and I lost all my saved work, this is really frustrating\"\nOutput:\n{\n  \"sentiment\": \"negative\",\n  \"urgency\": \"high\"\n}\n\nMessage:  {{ $json.body.message }}"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "10305237-7bd0-4a0f-9970-318f9d61e5d5",
+      "name": "Message a model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "YOUR_CREDENTIAL_NAME"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "feedback",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "name",
+              "fieldValue": "={{ $('Webhook').item.json.body.name }}"
+            },
+            {
+              "fieldId": "email",
+              "fieldValue": "={{ $('Webhook').item.json.body.email }}"
+            },
+            {
+              "fieldId": "message",
+              "fieldValue": "={{ $('Webhook').item.json.body.message }}"
+            },
+            {
+              "fieldId": "sentiment",
+              "fieldValue": "={{ $json.sentiment }}"
+            },
+            {
+              "fieldId": "urgency",
+              "fieldValue": "={{ $json.urgency }}"
+            },
+            {
+              "fieldId": "created_at",
+              "fieldValue": "={{ $now.setZone('Asia/Karachi').toFormat('cccc, dd LLL yyyy - HH:mm:ss') }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        704,
+        0
+      ],
+      "id": "68b86560-78c9-430e-9f2e-386c835748c4",
+      "name": "Create a row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "YOUR_CREDENTIAL_NAME"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.item.json.content.parts[0].text;\nconst cleaned = raw.replace(/```json|```/g, \"\").trim();\nconst parsed = JSON.parse(cleaned);\n\nreturn {\n  json: {\n    ...($input.item.json),\n    sentiment: parsed.sentiment,\n    urgency: parsed.urgency\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        528,
+        0
+      ],
+      "id": "adea47fe-1943-4bf8-8e9b-5aceea33ee88",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "29607353-098a-4aa3-b2d2-acb9bd482a97",
+              "leftValue": "={{ $json.urgency }}",
+              "rightValue": "high",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        912,
+        0
+      ],
+      "id": "210bcf70-2292-4786-a387-72c44e88022e",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "=Subject: New Feedback Based On High Priority",
+        "emailType": "text",
+        "message": "=Name: {{$json[\"name\"]}} \nReceived: {{ $json.created_at }} \nFeedback: \"{{$json[\"message\"]}}\"  \n\nAI Analysis:    \nSentiment: {{$json[\"sentiment\"]}} \nUrgency: {{$json[\"urgency\"]}} \n\n⚡ Next Step: If urgency is high, respond to this person within 24 hours.  \n\nAutomated by the Feedback Sentiment Analyzer workflow.",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1088,
+        -112
+      ],
+      "id": "d7e6c63b-906b-4f8b-9505-4fc647012c72",
+      "name": "Send a message",
+      "webhookId": "YOUR_WEBHOOK_ID",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "YOUR_CREDENTIAL_NAME"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Create a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a row": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "tags": []
+}
